@@ -45,11 +45,11 @@ for generation in range(10):
 
     for step in range(200):
         
-        random.seed(50)
+        
         # --------------------------------------------------
         # 1.1 Regime switch (every 10 steps)
         # --------------------------------------------------
-        if step % 10 == 0:
+        if step % 5 == 0:
             if random.randint(1, 2) == 2:
                 market_regime = "low liquidity"
             else:
@@ -68,97 +68,109 @@ for generation in range(10):
         else:
             impact = random.randint(4, 7)
 
-        # --------------------------------------------------
-        # 1.4 Choose bot
-        # --------------------------------------------------
-        index_bot = random.choice(range(len(inventory)))
-        effective_aggressiveness = aggressiveness[index_bot]
-
-        # --------------------------------------------------
-        # 1.5 Intended action
-        # --------------------------------------------------
-        if price > reference_price[index_bot]:
-            chosen_action = "sell"
-        elif price < reference_price[index_bot]:
-            chosen_action = "buy"
-        else:
-            chosen_action = "nothing"
-
-        # --------------------------------------------------
-        # 1.6 Inventory pressure (Goal 6B)
-        # --------------------------------------------------
-        if chosen_action == "sell":
-            if inventory[index_bot] < 4:
-                effective_aggressiveness -= 3
-            elif inventory[index_bot] >= 7:
-                effective_aggressiveness += 3
-
-        elif chosen_action == "buy":
-            if inventory[index_bot] > 7:
-                effective_aggressiveness -= 3
-            elif inventory[index_bot] <= 4:
-                effective_aggressiveness += 3
-
-        # Clamp aggressiveness
-        effective_aggressiveness = max(1, min(10, effective_aggressiveness))
-
-        # --------------------------------------------------
-        # 1.7 Act or hesitate
-        # --------------------------------------------------
-        if comparision_number <= effective_aggressiveness:
-            decision = "yes"
-        else:
-            decision = "do not"
-
-        # --------------------------------------------------
-        # 1.8 Apply action
-        # --------------------------------------------------
-        
-        execute = False
         
         
-        if decision == "yes":
-            if chosen_action == "sell" and inventory[index_bot] > 0:
-                execute = True
-            elif chosen_action == "buy" and money[index_bot] >= price: 
-                execute = True
+        total_buys = 0
+        total_sells = 0
+        
+        # --------------------------------------------------
+        # 1.4 Iterate through bots bot
+        # --------------------------------------------------
+        
+        for index_bot in range(len(inventory)):
+            
+            
+            effective_aggressiveness = aggressiveness[index_bot]
+
+            
+            comparision_number = random.randint(1, 10)
+            
+            # --------------------------------------------------
+            # 1.4.2 Intended action
+            # --------------------------------------------------
+            if price > reference_price[index_bot]:
+                chosen_action = "sell"
+            elif price < reference_price[index_bot]:
+                chosen_action = "buy"
             else:
-                execute = False   
-        
-        
-        if execute == True:
+                chosen_action = "nothing"
+
+            # --------------------------------------------------
+            # 1.4.3 Inventory pressure (Goal 6B)
+            # --------------------------------------------------
             if chosen_action == "sell":
-                inventory[index_bot] -= 1
-                money[index_bot] += price
-                price -= impact
+                if inventory[index_bot] < 4:
+                    effective_aggressiveness -= 3
+                elif inventory[index_bot] >= 7:
+                    effective_aggressiveness += 3
 
             elif chosen_action == "buy":
-                inventory[index_bot] += 1
-                money[index_bot] -= price
-                price += impact
+                if inventory[index_bot] > 7:
+                    effective_aggressiveness -= 3
+                elif inventory[index_bot] <= 4:
+                    effective_aggressiveness += 3
+
+            # Clamp aggressiveness
+            effective_aggressiveness = max(1, min(10, effective_aggressiveness))
+
+            # --------------------------------------------------
+            # 1.4.4 Act or hesitate
+            # --------------------------------------------------
+            if comparision_number <= effective_aggressiveness:
+                decision = "yes"
+            else:
+                decision = "do not"
+
+            # --------------------------------------------------
+            # 1.4.5 Apply action
+            # --------------------------------------------------
+            
+            execute = False
+            
+            if decision == "yes":
+                if chosen_action == "sell" and inventory[index_bot] > 0:
+                    execute = True
+                elif chosen_action == "buy" and money[index_bot] >= price: 
+                    execute = True
+            else:
+                execute = False
+             
+            
+            if execute == True:
+                if chosen_action == "sell":
+                    inventory[index_bot] -= 1
+                    money[index_bot] += price
+                    total_sells += 1
+
+                elif chosen_action == "buy":
+                    inventory[index_bot] += 1
+                    money[index_bot] -= price
+                    total_buys += 1
 
         # --------------------------------------------------
-        # 1.9 Record
+        # 1.5 Price changes + Record
         # --------------------------------------------------
+        
+        net_demand = total_buys - total_sells
+        price += net_demand * impact
         price_history.append(price)
-        bot_action_log.append(f"bot {index_bot} {chosen_action}")
+        
+        
 
         # --------------------------------------------------
-        # 1.10 Sanity checks
+        # 1.6 Sanity checks
         # --------------------------------------------------
         if len(price_history) >= 2:
             price_change = price_history[-1] - price_history[-2]
 
-            if execute == True:
-                if chosen_action == "buy" and price_change != impact:
-                    raise Exception("Bad BUY impact")
+            
+            if net_demand > 0 and price_change != net_demand * impact:
+                raise Exception("Bad BUY impact")
 
-                if chosen_action == "sell" and price_change != -impact:
-                    raise Exception("Bad SELL impact")
+            if net_demand < 0 and price_change != net_demand * impact:
+                raise Exception("Bad SELL impact")
 
-            else:
-                if price_change != 0:
-                    raise Exception("Price moved without action")
+            
 
         for inv in inventory:
             if inv < 0:
@@ -167,6 +179,12 @@ for generation in range(10):
         for cash in money:
             if cash < 0:
                 raise Exception("Negative money")
+            
+        if step % 10 == 0:
+            if price_history[-1] > 115 or price_history[-1] < 85:
+                print(f"Price is currently: {price_history[-1]}")
+                print(f"Market liquidity: {market_regime}")
+                print()
 
 
     # ======================================================
@@ -187,6 +205,41 @@ for generation in range(10):
     top_three = ranking[:3]
 
 
+
+    #FINDING AVG REF PRI AND AVG AGGRESSIVENESS
+    total_ref_price = 0
+    for ref_pri in range(len(reference_price)):
+        temp_ref_pri = reference_price[ref_pri]
+        total_ref_price += temp_ref_pri
+        
+    avg_ref_pri = total_ref_price / len(reference_price)
+    
+    print()
+    print(f"Avg reference price: {avg_ref_pri}")
+    print()
+    
+    total_agg = 0
+    for agg in range(len(aggressiveness)):
+        temp_agg = aggressiveness[agg]
+        total_agg += temp_agg
+    
+    avg_agg = total_agg / len(aggressiveness)
+    
+    print()
+    print(f"Avg aggressivness: {avg_agg}")
+    print()
+    
+    
+    total_pp = 0
+    for pp in range(len(price_history)):
+        temp_pp = price_history[pp]
+        total_pp += temp_pp
+    
+    avg_pp = total_pp / len(price_history)
+    
+    print()
+    print(f"Avg price: {avg_pp}")
+    print()
 
     # ======================================================
     # 3. REPRODUCTION (GOAL 7)
