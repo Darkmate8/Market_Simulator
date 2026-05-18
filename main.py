@@ -1,28 +1,44 @@
 from bot import Bot
-import random
+import yaml
 from simulation import run_simulation
+from stats_tracker import StatsTracker
+
+
+with open("config.yaml", "r") as f:
+    config = yaml.safe_load(f)
+    
 
 # ======================================================
 # INITIAL POPULATION
 # ======================================================
 
 bots = [
-    Bot(10, 1000, 3, 97),
-    Bot(10, 1000, 7, 100),
-    Bot(10, 1000, 9, 103),
-    Bot(10, 1000, 9, 95),
-    Bot(10, 1000, 5, 101),
-    Bot(10, 1000, 4, 99),
+    Bot(
+        inventory= config["start_inventory"],
+        money= config["start_money"],
+        aggressiveness= b["aggressiveness"],
+        reference_price= b["reference_price"]
+    )
+    for b in config["bots"]
 ]
 
 # ======================================================
-# EXECUTION (The missing part!)
+# EXECUTION
 # ======================================================
 
 if __name__ == "__main__":
-    # Define how long and how many times the simulation runs
-    STEPS_PER_GEN = 100
-    TOTAL_GENERATIONS = 5
-    
-    # Run the simulation logic from simulation.py
-    run_simulation(bots, STEPS_PER_GEN, TOTAL_GENERATIONS)
+
+    stats = StatsTracker()
+    run_simulation(bots, config, stats)
+
+    # ======================================================
+    # SUMMARY STATS AFTER SIMULATION
+    # ======================================================
+
+    print()
+    print("===================================================")
+    print("SIMULATION COMPLETE - STATS SUMMARY")
+    print("===================================================")
+    print()
+    print(f"Total Trades: {stats.total_trades()}")
+    print(f"Average Price (All Steps): {stats.average_price():.2f}")

@@ -88,3 +88,6 @@ class Bot:
     def net_worth(self, price):
 
         return self.money + (self.inventory * price)
+
+
+

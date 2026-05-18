@@ -1,19 +1,23 @@
 import random
 from bot import Bot
+from stats_tracker import StatsTracker
 
-def run_simulation(bots, num_steps, num_generations):
-    
+
+def run_simulation(bots, config, stats=None):
+
+    if stats is None:
+        stats = StatsTracker()
 
     market_regime = "high liquidity"
     
-    for generation in range(num_generations):
+    for generation in range(config["num_generations"]):
 
         print()
         print("===================================================")
         print(f"GENERATION {generation}")
         print("===================================================")
 
-        price = 100
+        price = config["starting_price"]
 
         price_history = []
 
@@ -21,13 +25,13 @@ def run_simulation(bots, num_steps, num_generations):
         # SIMULATION LOOP
         # ==================================================
 
-        for step in range(num_steps):
+        for step in range(config["steps_per_generation"]):
 
             # --------------------------------------------------
             # Market regime switch
             # --------------------------------------------------
-
-            if step % 5 == 0:
+            regime_switch_interval = config["regime_switch_interval"]
+            if step % regime_switch_interval == 0:
 
                 if random.randint(1, 2) == 1:
                     market_regime = "high liquidity"
@@ -40,10 +44,10 @@ def run_simulation(bots, num_steps, num_generations):
             # --------------------------------------------------
 
             if market_regime == "high liquidity":
-                impact = random.randint(1, 3)
+                impact = random.randint(config["high_liquidity_impact_min"], config["high_liquidity_impact_max"])
 
             else:
-                impact = random.randint(4, 7)
+                impact = random.randint(config["low_liquidity_impact_min"], config["low_liquidity_impact_max"])
 
             buyers = []
             sellers = []
@@ -67,6 +71,9 @@ def run_simulation(bots, num_steps, num_generations):
             # ==================================================
 
             total_trades = min(len(buyers), len(sellers))
+
+            buys_this_step = total_trades
+            sells_this_step = total_trades
 
             for i in range(total_trades):
 
@@ -99,10 +106,16 @@ def run_simulation(bots, num_steps, num_generations):
                     raise Exception("Negative money")
 
             # ==================================================
+            # RECORD STEP DATA
+            # ==================================================
+
+            stats.record_step(price, buys_this_step, sells_this_step)
+
+            # ==================================================
             # OCCASIONAL MARKET PRINT
             # ==================================================
 
-            if step % 20 == 0:
+            if step % config["print_interval"] == 0:
 
                 print()
                 print(f"STEP {step}")
@@ -119,6 +132,8 @@ def run_simulation(bots, num_steps, num_generations):
                         f"Ref: {bot.reference_price} | "
                         f"NW: {bot.net_worth(price)}"
                     )
+
+                
 
         # ======================================================
         # RANKING
@@ -164,6 +179,12 @@ def run_simulation(bots, num_steps, num_generations):
         print(f"Average Market Price: {avg_price}")
 
         # ======================================================
+        # RECORD GENERATION DATA
+        # ======================================================
+
+        stats.record_generation(bots, generation, price)
+
+        # ======================================================
         # REPRODUCTION
         # ======================================================
 
@@ -176,8 +197,8 @@ def run_simulation(bots, num_steps, num_generations):
         for survivor in top_three:
 
             copied_bot = Bot(
-                inventory=10,
-                money=1000,
+                inventory= config["start_inventory"],
+                money= config["start_money"],
                 aggressiveness=survivor.aggressiveness,
                 reference_price=survivor.reference_price
             )
@@ -198,8 +219,8 @@ def run_simulation(bots, num_steps, num_generations):
                 mutated_reference += random.randint(-2, 2)
 
                 mutated_reference = max(
-                    85,
-                    min(115, mutated_reference)
+                    config["mutation_ref_min"],
+                    min(config["mutation_ref_max"], mutated_reference)
                 )
 
             # Aggressiveness mutation
@@ -210,13 +231,13 @@ def run_simulation(bots, num_steps, num_generations):
                 mutated_aggressiveness += random.randint(-1, 1)
 
                 mutated_aggressiveness = max(
-                    1,
-                    min(10, mutated_aggressiveness)
+                    config["agg_clamp_min"],
+                    min(config["agg_clamp_max"], mutated_aggressiveness)
                 )
 
             child = Bot(
-                inventory=10,
-                money=1000,
+                inventory=config["start_inventory"],
+                money=config["start_money"],
                 aggressiveness=mutated_aggressiveness,
                 reference_price=mutated_reference
             )

@@ -1,0 +1,39 @@
+# Simulation parameters
+steps_per_generation: 200
+num_generations: 10
+starting_price: 100
+regime_switch_interval: 5
+print_interval: 20
+
+# Trade parameters
+high_liquidity_impact_min: 1
+high_liquidity_impact_max: 3
+low_liquidity_impact_min: 4
+low_liquidity_impact_max: 7
+
+# Bot defaults
+start_inventory: 10
+start_money: 1000
+
+# Mutation parameters
+mutation_ref_range: 2
+mutation_ref_min: 85
+mutation_ref_max: 115
+mutation_agg_range: 1
+agg_clamp_min: 1
+agg_clamp_max: 10
+
+# Initial bot population
+bots:
+  - aggressiveness: 3
+    reference_price: 97
+  - aggressiveness: 7
+    reference_price: 100
+  - aggressiveness: 9
+    reference_price: 103
+  - aggressiveness: 9
+    reference_price: 95
+  - aggressiveness: 5
+    reference_price: 101
+  - aggressiveness: 4
+    reference_price: 99
